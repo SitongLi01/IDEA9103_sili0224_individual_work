@@ -1,4 +1,6 @@
+// Create 2 variables (song, analyzer)
 let song, analyzer;
+// allRectsCoords Defines an array of objects, shows coordinates, dimensions and colour
 let allRectsCoords = [
 
   //Orignal file was 600 * 600
@@ -487,115 +489,110 @@ let allRectsCoords = [
 
 ];
 
+// Array will hold instances of rectangleManager
 let allRectsArray = [];
 
+// Defines a class for managing rectangle properties and movements
 class rectangleManager {
-
+  // Initializes a rectangle with specified coordinates, dimensions, and colour
   constructor(x, y, w, h, colour) {
-
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = h;
     this.colour = colour;
-
   }
-
+  // Draws the rectangle on the canvas
   display() {
-
     push();
     fill(this.colour);
     rect(this.drawX, this.drawY, this.drawWidth, this.drawHeight);
     pop();
-
   }
-
+  // Updates the colour of the rectangle
   updateColour(colour) {
-
     this.colour = colour;
-
   }
-
+  // Calculates the rectangle's dimensions and position based on the canvas size.
   calculateDrawSize(widthScale, heightScale){
-
     this.drawX = this.x * widthScale;
     this.drawY = this.y * heightScale;
     this.drawWidth = this.w * widthScale;
     this.drawHeight = this.h * heightScale;
-
   }
-
 }
 
 function preload() {
-  //load the sound file in preload
+  // Load the sound file in preload
   song = loadSound('assest/YannTiersen-ComptineDunAutreEte.mp3');
 }
 
 function setup() {
-
+  // Make the canvas the fit the window size
   createCanvas(windowWidth, windowHeight);
 
+  // Create a new Amplitude analyzer, analyze the volume of the song
   analyzer = new p5.Amplitude();
 
+  // Sets the input of the analyzer to the loaded sound file
   analyzer.setInput(song);
 
-  //Add a button for play/pause
+  // Add a button for play/pause
   let button = createButton('Play/Pause');
 
+  // Set the position of the button at the bottom center of the canvas
   button.position((width - button.width) / 2, height - button.height - 2);
 
+  // Attaches a mouse press event to the button to toggle play/pause
   button.mousePressed(play_pause);
 
+ // Create a loop to stored the data from allRectsCoords into allRectsArray
   for (let i = 0; i < allRectsCoords.length; i++) {
-
     let newRect = new rectangleManager(allRectsCoords[i].x, allRectsCoords[i].y, allRectsCoords[i].w, allRectsCoords[i].h, allRectsCoords[i].colour);
     allRectsArray.push(newRect);
-
-  }
-
+  } 
+  // Resizes the positions of rectangle through the canvas size change
   resizedRectangles();
 
 }
 
 function draw() {
   background(30, 47, 97);
-  
   noStroke();
-
+ 
+    // Get the average (root mean square) amplitude of sound
     let rms = analyzer.getLevel();
-
+    // Fill the rectangle colour
     fill(127);
-
+    // Draw an rect with size based on volume
     rect(width / 2, height / 2, 10 + rms * 200, 10 + rms * 200);
-
+  /* Create a rectangle display loop to iterates over allRectsArray 
+  and calls the display method for each rectangle.*/
   for (let i = 0; i < allRectsArray.length; i++) {
     allRectsArray[i].display();
   }
 }
-
+// Toggles the playback of the sound
 function play_pause() {
-
   if (song.isPlaying()) {
     song.stop();
   } else {
+    // Use song.play() to let the song play once
+    // Want the song to loop, so we call song.loop()
     song.loop();
-
   }
-
 }
-
+// Resize the canvas size through change the window
 function windowResized(){
-
   resizeCanvas(windowWidth, windowHeight);
   resizedRectangles();
-
 }
-
+// Adjusts the size and position of all rectangles based on the canvas size
 function resizedRectangles(){
-
+  // Use loop to calculate the rectangle size
   for (let i = 0; i < allRectsArray.length; i++) {
     allRectsArray[i].calculateDrawSize(windowWidth, windowHeight);
   }
 
 }
+
