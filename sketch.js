@@ -1,11 +1,5 @@
-// Create 2 variables (song, analyzer)
-let song, analyzer;
 // allRectsCoords Defines an array of objects, shows coordinates, dimensions and colour
 let allRectsCoords = [
-
-  //Orignal file was 600 * 600
-  //Light blue 
-  //Light blue (vertically from left to right)
   {x: 14/600 , y: 0/600 , w: 13/600 , h: 220/600 , colour: "rgb(56, 118, 166)"},
   {x: 36/600 , y: 0/600 , w: 13/600 , h: 600/600 , colour: "rgb(56, 118, 166)"},
   {x: 65/600 , y: 0/600 , w: 13/600 , h: 570/600 , colour: "rgb(56, 118, 166)"},
@@ -43,7 +37,7 @@ let allRectsCoords = [
   {x: 91/600 , y: 209/600 , w: 31/600 , h: 60/600 , colour: "rgb(56, 118, 166)"},
   {x: 78/600 , y: 470/600 , w: 60/600 , h: 43/600 , colour: "rgb(56, 118, 166)"},
   {x: 170/600 , y: 273/600 , w: 38/600 , h: 70/600 , colour: "rgb(56, 118, 166)"},
-  {x: 250/600 , y: 209/600 , w: 40/600 , h: 131/600 , colour: "rgb(56, 118, 166)"},
+  {x: 250/600 , y: 210/600 , w: 40/600 , h: 130/600 , colour: "rgb(56, 118, 166)"},
   {x: 515/600 , y: 290/600 , w: 70/600 , h: 30/600 , colour: "rgb(56, 118, 166)"},
 
   //Orange
@@ -488,9 +482,18 @@ let allRectsCoords = [
   {x: 403/600 , y: 155/600 , w: 29/600 , h: 22/600 , colour: "rgb(56, 118, 166)"},
 
 ];
-
 // Array will hold instances of rectangleManager
 let allRectsArray = [];
+// A variable to hold the loaded sound file
+let song;
+// A variable to hold the FFT object
+let fft;
+// The number of frequency bins as 1024 for the FFT
+let numBins = 1024;
+// Sets the smoothing as 0.6 for the FFT
+let smoothing = 0.6;
+// A variable to hold the play/pause button
+let button;
 
 // Defines a class for managing rectangle properties and movements
 class rectangleManager {
@@ -501,79 +504,110 @@ class rectangleManager {
     this.w = w;
     this.h = h;
     this.colour = colour;
+    // Set scale as 1
+    this.scale = 1;
   }
+
   // Draws the rectangle on the canvas
   display() {
+
     push();
     fill(this.colour);
-    rect(this.drawX, this.drawY, this.drawWidth, this.drawHeight);
+    rect(this.drawX, this.drawY, this.drawWidth * this.scale, this.drawHeight * this.scale);
     pop();
+
   }
-  // Updates the colour of the rectangle
+  // Update the rectangle's color
   updateColour(colour) {
     this.colour = colour;
   }
-  // Calculates the rectangle's dimensions and position based on the canvas size.
-  calculateDrawSize(widthScale, heightScale){
+  // Calculates the rectangle's dimensions based on the window's size (x, y, w, h)
+  calculateDrawSize(widthScale, heightScale) {
+
+    /* E.g. Calculates the x-coordinate for rectangle by multiplying 
+    the original x-coordinate (this.x) by the width scale factor (widthScale).*/
     this.drawX = this.x * widthScale;
     this.drawY = this.y * heightScale;
     this.drawWidth = this.w * widthScale;
     this.drawHeight = this.h * heightScale;
-  }
-}
 
+  }
+  // Sets the scale factor for the rect to let the rect can change in scale
+  setScale(scale) {
+    this.scale = scale;
+  }
+
+}
+// Load the sound file in preload
 function preload() {
-  // Load the sound file in preload
-  song = loadSound('assest/YannTiersen-ComptineDunAutreEte.mp3');
+  song = loadSound("assest/YannTiersen-ComptineDunAutreEte.mp3");
 }
 
 function setup() {
   // Make the canvas the fit the window size
   createCanvas(windowWidth, windowHeight);
+  // Create a new instance of p5.FFT() object
+  fft = new p5.FFT(smoothing, numBins);
 
-  // Create a new Amplitude analyzer, analyze the volume of the song
-  analyzer = new p5.Amplitude();
-
-  // Sets the input of the analyzer to the loaded sound file
-  analyzer.setInput(song);
-
+  song.connect(fft);
   // Add a button for play/pause
-  let button = createButton('Play/Pause');
-
+  button = createButton("Play/Pause");
   // Set the position of the button at the bottom center of the canvas
   button.position((width - button.width) / 2, height - button.height - 2);
-
   // Attaches a mouse press event to the button to toggle play/pause
   button.mousePressed(play_pause);
 
  // Create a loop to stored the data from allRectsCoords into allRectsArray
   for (let i = 0; i < allRectsCoords.length; i++) {
-    let newRect = new rectangleManager(allRectsCoords[i].x, allRectsCoords[i].y, allRectsCoords[i].w, allRectsCoords[i].h, allRectsCoords[i].colour);
-    allRectsArray.push(newRect);
-  } 
+    let newRect = new rectangleManager(
+      allRectsCoords[i].x, allRectsCoords[i].y, allRectsCoords[i].w, allRectsCoords[i].h, allRectsCoords[i].colour);
+      allRectsArray.push(newRect);
+  }
+
   // Resizes the positions of rectangle through the canvas size change
   resizedRectangles();
+  // Resizes the positions of button through the canvas size change
+  resizeButton();
 
 }
 
 function draw() {
+
   background(30, 47, 97);
   noStroke();
- 
-    // Get the average (root mean square) amplitude of sound
-    let rms = analyzer.getLevel();
-    // Fill the rectangle colour
-    fill(127);
-    // Draw an rect with size based on volume
-    rect(width / 2, height / 2, 10 + rms * 200, 10 + rms * 200);
+
+  /* analyze() method will returns an array of amplitude values and go through 
+  allRectsArray to adjust the scale of each rectangle based on the corresponding 
+  spectrum value. Then, rectangles will display */
+  // Amplitude values range are 0 - 255, if 0, the sound is silent
+  // If 255, the sound will be loudest
+  let spectrum = fft.analyze();
+
   /* Create a rectangle display loop to iterates over allRectsArray 
   and calls the display method for each rectangle.*/
   for (let i = 0; i < allRectsArray.length; i++) {
+    
+    /* Set specValue as spectrum value and use ‘i’ divided by numbins to ensure 
+    the index ‘i’ wraps around within the range [0, numBins-1], and will not 
+    out of range. */
+    let specValue = spectrum[i % numBins];
+
+    /* Calculates the scale for the rectangles based on the spectrum value. 
+    The spectrum values range 0 - 255. Normalize this value to a scale range 
+    from 1 to 2 by / 255 and + 1, which ensures that the mini is 1 and the max 
+    scale is 2. */
+    let scale = 1 + specValue / 255;
+
+    // Adjusts the size of the rectangle based on the spectrum value
+    allRectsArray[i].setScale(scale);
     allRectsArray[i].display();
   }
+
 }
+
 // Toggles the playback of the sound
 function play_pause() {
+
   if (song.isPlaying()) {
     song.stop();
   } else {
@@ -581,14 +615,26 @@ function play_pause() {
     // Want the song to loop, so we call song.loop()
     song.loop();
   }
+
 }
-// Resize the canvas size through change the window
-function windowResized(){
+
+// Resize the button based on the button.position has set up above, let it fit to the window size
+function resizeButton() {
+  button.position((windowWidth - button.width) / 2, windowHeight - button.height - 20);
+}
+
+// Resize the canvas, button and rectangles size through change the window
+function windowResized() {
+
   resizeCanvas(windowWidth, windowHeight);
+  resizeButton();
   resizedRectangles();
+
 }
+
 // Adjusts the size and position of all rectangles based on the canvas size
-function resizedRectangles(){
+function resizedRectangles() {
+  
   // Use loop to calculate the rectangle size
   for (let i = 0; i < allRectsArray.length; i++) {
     allRectsArray[i].calculateDrawSize(windowWidth, windowHeight);
