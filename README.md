@@ -17,13 +17,13 @@
 
 #### The properties I chose to animate include:
 
-- **<p style="text-align: justify;">Position and Movement:** The rectangles are dynamically moved around the canvas, with their offsets determined by the frequency spectrum of the audio.</p>
+- **<p style="text-align: justify;">Movement and Rotate:** The rectangles are dynamically change the shpaes size and rotate within the canvas before the music has played bu using offset method, after that the movement will determined by the frequency spectrum of the audio.</p>
 
 - **<p style="text-align: justify;">Rotation:** Each rectangle rotates around its centre, with the rotation angle affected by the audio's amplitude.</p>
 
-- **<p style="text-align: justify;">Scale:** The scale of each rectangle changes based on the frequency spectrum data, creating a jumping effect.</p>
+- **<p style="text-align: justify;">Scale:** The scale of each rectangle changes based on the frequency spectrum data, creating a jumping and shaking effect.</p>
 
-#### <p style="text-align: justify;">This approach differs from the other group members, focusing on the rectangles' dynamic movement and scale based on the component size.</p>
+<p style="text-align: justify;">Through discussions with group members, the properties changed before animation mainly focused on the position and movement of some components. In contrast, after animation, that will emphasise the dynamic movement of rectangles and scaling based on component size (the shapes jumped and rotated during the playing song). One of the team members also used the rotation method, but the difference between our focus was that I mainly made the jumps and shakes based on the music nodes, while the other team members achieved the easing effect through mouse control..</p>
 
 ## **Inspiration**
 
@@ -52,11 +52,12 @@ let volume = 1.0;
 let pan = 0.0;
 let amplitude;
 ```
-- <p style="text-align: justify;">Contains properties and methods for dynamic scaling and rotation based on audio input.</p>
+- <p style="text-align: justify;">Contains properties and methods for dynamic scaling and rotation based on audio input. The offsetX and offsetY are instance variables that represent the horizontal and vertical offset of the rectangles' movements.</p>
 
 ```
+class rectangleManager {
 display() {
-    translate(this.drawX + this.drawWidth / 2, this.drawY + this.drawHeight / 2);
+    translate(this.drawX + this.offsetX + this.drawWidth / 2, this.drawY + this.offsetY + this.drawHeight / 2);
     rotate(map(amplitude, 0, 255, 0, TWO_PI));
     rectMode(CENTER);
   }
@@ -65,6 +66,15 @@ display() {
     this.scale = scale;
   }
 
+  setScale(scale) {
+    this.scale = scale;
+  }
+  setOffset(offsetX, offsetY) {
+
+    this.offsetX = offsetX;
+    this.offsetY = offsetY;
+  }
+}
 ```
 - <p style="text-align: justify;">Setup initializing audio analysis objects and creating a play/pause button.</p>
   
@@ -94,7 +104,17 @@ function draw() {
     let specValue = spectrum[i % numBins];
     let scale = 1 + specValue / 255;
 
+    let offsetX = map(specValue, 0, 255, 0, random(8));
+    let offsetY = map(specValue, 255, 0, 0, random(5));
+
+    if (i <= 200){
+      offsetX = map(specValue, 0, 255, 0, random(0));
+      offsetY = map(specValue, 255, 0, 0, random(0));
+
+    }
+
     allRectsArray[i].setScale(scale);
+    allRectsArray[i].setOffset(offsetX, offsetY);
     allRectsArray[i].calculateDrawSize(windowWidth, windowHeight);
     allRectsArray[i].display();
   }

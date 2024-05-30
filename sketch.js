@@ -516,6 +516,12 @@ class rectangleManager {
 
     // Set scale as 1
     this.scale = 1;
+
+    /* offsetX and offsetY are instance variables that represent the horizontal 
+    and vertical offset of the rectangles, which are initialized to 0, indicating 
+    that the rectangle's position is initially unchanged. */
+    this.offsetX = 0;
+    this.offsetY = 0;
   
   }
 
@@ -527,8 +533,8 @@ class rectangleManager {
 
     fill(this.colour);
 
-    // Move the origin of the coordinates of the rectangle, divided by 2 means move to the center of the rectangle
-    translate(this.drawX + this.drawWidth / 2, this.drawY+ this.drawHeight / 2);
+    // Translates the origin of the coordinate system to the center of the rectangle, divided by 2 means move to the center of the rectangle
+    translate(this.drawX + this.offsetX + this.drawWidth / 2, this.drawY + this.offsetY + this.drawHeight / 2);
 
     // Rotates the rectangle based on the amplitude value
     // The range of amplitude (0 - 255)
@@ -568,7 +574,15 @@ class rectangleManager {
   setScale(scale) {
     this.scale = scale;
   }
+  // setOffset() method indicate the offsetX(horizontally) and offsetY(vertically)
+  setOffset(offsetX, offsetY) {
 
+    // The offsetX data transfer to the offsetX property of the RectangleManager()
+    this.offsetX = offsetX;
+
+    // The offsetY data transfer to the offsetX property of the RectangleManager()
+    this.offsetY = offsetY;
+  }
 }
 
 // Load the sound file in preload
@@ -621,6 +635,10 @@ function draw() {
   // Get overall amplitude between 20 Hz to 20000Hz
   amplitude = fft.getEnergy(20, 20000);
 
+  // for (let i = 0; i < allRectsArray.length; i++){
+  //   let 
+  // }
+
   /* Create a rectangle display loop to iterates over allRectsArray 
   and calls the display method for each rectangle.*/
   for (let i = 0; i < allRectsArray.length; i++) {
@@ -637,8 +655,23 @@ function draw() {
     scale is 2. */
     let scale = 1 + specValue / 255;
 
+    // Calculate the offsetX and offsetY based on the spectrum value
+    // From a range of 0 to 255 to a new range of 0 to a random value
+    let offsetX = map(specValue, 0, 255, 0, random(8));
+    let offsetY = map(specValue, 255, 0, 0, random(5));
+    /* Use loop to control the offset of rectangles, set if i <=50 through the allRectsArray
+    some of the rectangles will still until the song has playing. */
+    if (i <= 200){
+      offsetX = map(specValue, 0, 255, 0, random(0));
+      offsetY = map(specValue, 255, 0, 0, random(0));
+
+    }
+
     // Adjust the size of the rectangle based on the spectrum value
     allRectsArray[i].setScale(scale);
+
+    // Set the offsetX and offsetY calculated in the previous step
+    allRectsArray[i].setOffset(offsetX, offsetY);
 
     // Recalculate the dimensions of the rectangle based on the current window size
     allRectsArray[i].calculateDrawSize(windowWidth, windowHeight);
