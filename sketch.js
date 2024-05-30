@@ -1,5 +1,6 @@
-// allRectsCoords Defines an array of objects, shows coordinates, dimensions and colour
+// allRectsCoords defines an array of rectangles coordinates, dimensions and colour
 let allRectsCoords = [
+  //Light blue (vertically from left to right)
   {x: 14/600 , y: 0/600 , w: 13/600 , h: 220/600 , colour: "rgb(56, 118, 166)"},
   {x: 36/600 , y: 0/600 , w: 13/600 , h: 600/600 , colour: "rgb(56, 118, 166)"},
   {x: 65/600 , y: 0/600 , w: 13/600 , h: 570/600 , colour: "rgb(56, 118, 166)"},
@@ -482,6 +483,7 @@ let allRectsCoords = [
   {x: 403/600 , y: 155/600 , w: 29/600 , h: 22/600 , colour: "rgb(56, 118, 166)"},
 
 ];
+
 // Array will hold instances of rectangleManager
 let allRectsArray = [];
 // A variable to hold the loaded sound file
@@ -490,13 +492,20 @@ let song;
 let fft;
 // The number of frequency bins as 1024 for the FFT
 let numBins = 1024;
-// Sets the smoothing as 0.6 for the FFT
-let smoothing = 0.6;
+// Sets the smoothing as 0.5 for the FFT
+let smoothing = 0.5;
 // A variable to hold the play/pause button
 let button;
+// A variable to start the volume at 1.0 (full volume) 
+let volume = 1.0;
+// Start the pan at 0.0 (center) (goes from -1.0 (left) to 1.0 (right))
+let pan = 0.0;
+// A variable of amplitude
+let amplitude;
 
 // Defines a class for managing rectangle properties and movements
 class rectangleManager {
+
   // Initializes a rectangle with specified coordinates, dimensions, and colour
   constructor(x, y, w, h, colour) {
     this.x = x;
@@ -504,23 +513,45 @@ class rectangleManager {
     this.w = w;
     this.h = h;
     this.colour = colour;
+
     // Set scale as 1
     this.scale = 1;
+  
   }
 
   // Draws the rectangle on the canvas
   display() {
 
+    // The push() function saves any transformations and style settings
     push();
+
     fill(this.colour);
-    rect(this.drawX, this.drawY, this.drawWidth * this.scale, this.drawHeight * this.scale);
+
+    // Move the origin of the coordinates of the rectangle, divided by 2 means move to the center of the rectangle
+    translate(this.drawX + this.drawWidth / 2, this.drawY+ this.drawHeight / 2);
+
+    // Rotates the rectangle based on the amplitude value
+    // The range of amplitude (0 - 255)
+    /* 0 to TWO_PI, which is means rotate 360 degrees, as the amplitude of the sound changes, 
+    the rotation of the rectangle changing */
+    rotate(map(amplitude, 0, 255, 0, TWO_PI));
+
+    // Sets the rectangle mode to CENTER
+    rectMode(CENTER);
+
+    // Draws the rectangle at the translated, rotated position, resize the dimension of rect and the coordinates stay at (0,0)
+    rect(0, 0, this.drawWidth * this.scale, this.drawHeight * this.scale);
+
+    // The pop() function restores any transformations and style settings, saved by the push()
     pop();
 
   }
+
   // Update the rectangle's color
   updateColour(colour) {
     this.colour = colour;
   }
+
   // Calculates the rectangle's dimensions based on the window's size (x, y, w, h)
   calculateDrawSize(widthScale, heightScale) {
 
@@ -532,12 +563,14 @@ class rectangleManager {
     this.drawHeight = this.h * heightScale;
 
   }
+
   // Sets the scale factor for the rect to let the rect can change in scale
   setScale(scale) {
     this.scale = scale;
   }
 
 }
+
 // Load the sound file in preload
 function preload() {
   song = loadSound("assest/YannTiersen-ComptineDunAutreEte.mp3");
@@ -546,33 +579,35 @@ function preload() {
 function setup() {
   // Make the canvas the fit the window size
   createCanvas(windowWidth, windowHeight);
+
   // Create a new instance of p5.FFT() object
   fft = new p5.FFT(smoothing, numBins);
 
+  //Creates p5.Amplitude() which can used to analyze the amplitude of audio track.
+  amplitude = new p5.Amplitude();
+
   song.connect(fft);
+
   // Add a button for play/pause
   button = createButton("Play/Pause");
-  // Set the position of the button at the bottom center of the canvas
+
+  //set the position of the button to the bottom center
   button.position((width - button.width) / 2, height - button.height - 2);
+
   // Attaches a mouse press event to the button to toggle play/pause
   button.mousePressed(play_pause);
 
- // Create a loop to stored the data from allRectsCoords into allRectsArray
+   // Create a loop to stored the data from allRectsCoords into allRectsArray
   for (let i = 0; i < allRectsCoords.length; i++) {
-    let newRect = new rectangleManager(
-      allRectsCoords[i].x, allRectsCoords[i].y, allRectsCoords[i].w, allRectsCoords[i].h, allRectsCoords[i].colour);
-      allRectsArray.push(newRect);
+
+    //The array allRectsArray data continuously growing in size with new rectangleManager objects being added each time the loop iterates, 
+    let newRect = new rectangleManager(allRectsCoords[i].x, allRectsCoords[i].y, allRectsCoords[i].w, allRectsCoords[i].h,  allRectsCoords[i].colour);
+    allRectsArray.push(newRect);
   }
 
-  // Resizes the positions of rectangle through the canvas size change
-  resizedRectangles();
-  // Resizes the positions of button through the canvas size change
-  resizeButton();
-
 }
-
+// Draw the amplitude and spectrum, and calculate the scale and offset of rectangle shapes
 function draw() {
-
   background(30, 47, 97);
   noStroke();
 
@@ -583,31 +618,38 @@ function draw() {
   // If 255, the sound will be loudest
   let spectrum = fft.analyze();
 
+  // Get overall amplitude between 20 Hz to 20000Hz
+  amplitude = fft.getEnergy(20, 20000);
+
   /* Create a rectangle display loop to iterates over allRectsArray 
   and calls the display method for each rectangle.*/
   for (let i = 0; i < allRectsArray.length; i++) {
-    
+
     /* Set specValue as spectrum value and use ‘i’ divided by numbins to ensure 
     the index ‘i’ wraps around within the range [0, numBins-1], and will not 
     out of range. */
+    // use % to divided will get the integer result
     let specValue = spectrum[i % numBins];
-
-    /* Calculates the scale for the rectangles based on the spectrum value. 
+    
+    /* Calculate the scale for the rectangles based on the spectrum value.
     The spectrum values range 0 - 255. Normalize this value to a scale range 
     from 1 to 2 by / 255 and + 1, which ensures that the mini is 1 and the max 
     scale is 2. */
     let scale = 1 + specValue / 255;
 
-    // Adjusts the size of the rectangle based on the spectrum value
+    // Adjust the size of the rectangle based on the spectrum value
     allRectsArray[i].setScale(scale);
+
+    // Recalculate the dimensions of the rectangle based on the current window size
+    allRectsArray[i].calculateDrawSize(windowWidth, windowHeight);
+
+    // Called to draw the rect on the canvas with size and position has updated while the code has running
     allRectsArray[i].display();
   }
-
 }
 
 // Toggles the playback of the sound
 function play_pause() {
-
   if (song.isPlaying()) {
     song.stop();
   } else {
@@ -615,12 +657,23 @@ function play_pause() {
     // Want the song to loop, so we call song.loop()
     song.loop();
   }
+}
 
+function mouseMoved() {
+  // Map the mouseY to a volume value between 0 and 1
+  volume = map(mouseY, 0, height, 1, 0);
+
+  song.setVolume(volume);
+
+  // Map the mouseX to a pan value between -1 and 1
+  pan = map(mouseX, 0, width, -1, 1);
+
+  song.pan(pan);
 }
 
 // Resize the button based on the button.position has set up above, let it fit to the window size
 function resizeButton() {
-  button.position((windowWidth - button.width) / 2, windowHeight - button.height - 20);
+  button.position((windowWidth - button.width) / 2, windowHeight - button.height - 2);
 }
 
 // Resize the canvas, button and rectangles size through change the window
@@ -628,13 +681,13 @@ function windowResized() {
 
   resizeCanvas(windowWidth, windowHeight);
   resizeButton();
-  resizedRectangles();
+  resizeRectangles();
 
 }
 
 // Adjusts the size and position of all rectangles based on the canvas size
-function resizedRectangles() {
-  
+function resizeRectangles() {
+
   // Use loop to calculate the rectangle size
   for (let i = 0; i < allRectsArray.length; i++) {
     allRectsArray[i].calculateDrawSize(windowWidth, windowHeight);
